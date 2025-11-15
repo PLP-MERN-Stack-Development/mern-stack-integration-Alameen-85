@@ -109,7 +109,8 @@ router.post(
             await post.save();
             console.log('✅ Post saved:', post._id);
 
-            const populatedPost = await post
+            // Fetch the post with populated fields
+            const populatedPost = await Post.findById(post._id)
                 .populate('author', 'name email avatar')
                 .populate('category', 'name slug');
 

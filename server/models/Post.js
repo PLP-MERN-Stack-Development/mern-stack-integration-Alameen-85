@@ -20,8 +20,8 @@ const PostSchema = new mongoose.Schema(
     },
     slug: {
       type: String,
-      required: true,
       unique: true,
+      sparse: true,
     },
     excerpt: {
       type: String,
@@ -68,15 +68,19 @@ const PostSchema = new mongoose.Schema(
 
 // Create slug from title before saving
 PostSchema.pre('save', function (next) {
-  if (!this.isModified('title')) {
-    return next();
+  console.log('📝 Pre-save hook running. Current slug:', this.slug, 'Title:', this.title);
+
+  // Generate slug from title if not already set
+  if (!this.slug || this.isModified('title')) {
+    const baseSlug = this.title
+      .toLowerCase()
+      .replace(/[^\w ]+/g, '')
+      .replace(/ +/g, '-');
+
+    // Add timestamp to ensure uniqueness
+    this.slug = `${baseSlug}-${Date.now()}`;
+    console.log('✅ Generated slug:', this.slug);
   }
-  
-  this.slug = this.title
-    .toLowerCase()
-    .replace(/[^\w ]+/g, '')
-    .replace(/ +/g, '-');
-    
   next();
 });
 
