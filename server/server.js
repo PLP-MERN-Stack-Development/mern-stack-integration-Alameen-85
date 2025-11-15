@@ -67,15 +67,18 @@ const connectDB = async () => {
       process.exit(1);
     }
 
-    // As of mongoose v6+, these options are no longer necessary and are deprecated in the
-    // underlying MongoDB driver. Call connect with the uri only.
-    await mongoose.connect(uri);
+    // Connection options for MongoDB Atlas
+    const mongooseOptions = {
+      serverSelectionTimeoutMS: 10000,
+    };
+
+    await mongoose.connect(uri, mongooseOptions);
     console.log('✅ Connected to MongoDB');
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
     });
   } catch (err) {
-    console.error('❌ Failed to connect to MongoDB', err);
+    console.error('❌ Failed to connect to MongoDB', err.message);
     process.exit(1);
   }
 };

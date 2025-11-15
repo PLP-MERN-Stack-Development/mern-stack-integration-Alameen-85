@@ -82,6 +82,12 @@ export default function CreatePost() {
 
         if (!validateForm()) return;
 
+        // Validate excerpt length on client side
+        if (formData.excerpt && formData.excerpt.length > 200) {
+            alert('Excerpt must be 200 characters or less');
+            return;
+        }
+
         const submitData = {
             title: formData.title,
             content: formData.content,
@@ -94,9 +100,20 @@ export default function CreatePost() {
             featuredImage: formData.featuredImage,
         };
 
-        const result = await createPost(submitData);
-        if (result) {
-            navigate(postId ? `/post/${postId}` : '/');
+        try {
+            const result = await createPost(submitData);
+            if (result) {
+                navigate(postId ? `/post/${postId}` : '/');
+            }
+        } catch (err) {
+            console.error('Error creating post:', err);
+            // Handle validation errors
+            if (err.response?.data?.errors) {
+                const validationErrors = err.response.data.errors.map(e => e.msg).join('\n');
+                alert('Validation errors:\n' + validationErrors);
+            } else {
+                alert('Error creating post: ' + (err.response?.data?.error || err.message));
+            }
         }
     };
 
@@ -149,14 +166,18 @@ export default function CreatePost() {
                 </div>
 
                 <div className="form-group">
-                    <label>Excerpt (Optional)</label>
+                    <label>Excerpt (Optional - Max 200 characters)</label>
                     <textarea
                         name="excerpt"
                         value={formData.excerpt}
                         onChange={handleChange}
                         placeholder="Brief summary of the post"
                         rows={2}
+                        maxLength={200}
                     />
+                    <small style={{ color: formData.excerpt.length > 180 ? '#ff6b6b' : '#666' }}>
+                        {formData.excerpt.length}/200 characters
+                    </small>
                 </div>
 
                 <div className="form-group">
