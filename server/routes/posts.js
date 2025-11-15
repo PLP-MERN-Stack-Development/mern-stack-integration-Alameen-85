@@ -83,10 +83,12 @@ router.post(
     async (req, res, next) => {
         try {
             const { title, content, categoryId, excerpt, tags, featuredImage } = req.body;
+            console.log('📝 Creating post:', { title, categoryId, author: req.userId });
 
             // Check if category exists
             const category = await Category.findById(categoryId);
             if (!category) {
+                console.error('❌ Category not found:', categoryId);
                 return res.status(404).json({
                     success: false,
                     error: 'Category not found',
@@ -105,6 +107,7 @@ router.post(
             });
 
             await post.save();
+            console.log('✅ Post saved:', post._id);
 
             const populatedPost = await post
                 .populate('author', 'name email avatar')
@@ -115,6 +118,7 @@ router.post(
                 data: populatedPost,
             });
         } catch (err) {
+            console.error('❌ Error creating post:', err.message);
             next(err);
         }
     }

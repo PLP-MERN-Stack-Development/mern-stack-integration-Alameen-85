@@ -1,0 +1,222 @@
+<!-- Test page to debug auth and post creation -->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Debug Auth & Posts</title>
+    <style>
+        body {
+            font-family: Arial;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .output {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .form-group {
+            margin: 15px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>🧪 Authentication & Post Creation Test</h2>
+
+        <div class="form-group">
+            <h3>Step 1: Register</h3>
+            <button onclick="testRegister()">Register New User</button>
+            <div id="registerOutput" class="output"></div>
+        </div>
+
+        <div class="form-group">
+            <h3>Step 2: Check Token Storage</h3>
+            <button onclick="checkToken()">Check localStorage for token</button>
+            <div id="tokenOutput" class="output"></div>
+        </div>
+
+        <div class="form-group">
+            <h3>Step 3: Create Post</h3>
+            <button onclick="testCreatePost()">Create Test Post</button>
+            <div id="postOutput" class="output"></div>
+        </div>
+
+        <div class="form-group">
+            <h3>Debug Info</h3>
+            <button onclick="showDebugInfo()">Show Debug Info</button>
+            <div id="debugOutput" class="output"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        let currentToken = null;
+        let currentCategoryId = null;
+
+        async function testRegister() {
+            const output = document.getElementById('registerOutput');
+            output.innerHTML = '⏳ Registering...';
+            try {
+                const email = `test${Date.now()}@test.com`;
+                const response = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: 'Test User',
+                        email,
+                        password: 'Test123!@'
+                    })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    currentToken = data.token;
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    output.innerHTML = `<span class="success">✅ Registered successfully!</span>\n\nEmail: ${email}\nToken stored in localStorage\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+
+                    // Also get a category
+                    await getCategory();
+                } else {
+                    output.innerHTML = `<span class="error">❌ Registration failed:</span>\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Error:</span>\n${error.message}\n\n${error.stack}`;
+            }
+        }
+
+        async function getCategory() {
+            try {
+                const response = await fetch(`${API_URL}/categories`);
+                const data = await response.json();
+                if (data.data && data.data.length > 0) {
+                    currentCategoryId = data.data[0]._id;
+                    console.log('Category ID:', currentCategoryId);
+                }
+            } catch (error) {
+                console.error('Error getting category:', error);
+            }
+        }
+
+        function checkToken() {
+            const output = document.getElementById('tokenOutput');
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+
+            if (token) {
+                output.innerHTML = `<span class="success">✅ Token found in localStorage</span>\n\nToken:\n${token}\n\nUser:\n${user}`;
+            } else {
+                output.innerHTML = `<span class="error">❌ No token in localStorage</span>`;
+            }
+        }
+
+        async function testCreatePost() {
+            const output = document.getElementById('postOutput');
+            output.innerHTML = '⏳ Creating post...';
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    output.innerHTML = `<span class="error">❌ No token found! Register first.</span>`;
+                    return;
+                }
+
+                if (!currentCategoryId) {
+                    output.innerHTML = `<span class="error">❌ No category found! Try again after registration.</span>`;
+                    return;
+                }
+
+                const response = await fetch(`${API_URL}/posts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        title: `Test Post ${Date.now()}`,
+                        content: 'This is test content',
+                        categoryId: currentCategoryId,
+                        excerpt: 'Test excerpt',
+                        tags: ['test']
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    output.innerHTML = `<span class="success">✅ Post created successfully!</span>\n\nPost ID: ${data.data._id}\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+                } else if (response.status === 401) {
+                    output.innerHTML = `<span class="error">❌ Authorization failed (401)</span>\n\nToken: ${token.substring(0, 20)}...\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    output.innerHTML = `<span class="error">❌ Post creation failed (${response.status})</span>\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Error:</span>\n${error.message}`;
+            }
+        }
+
+        function showDebugInfo() {
+            const output = document.getElementById('debugOutput');
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+
+            output.innerHTML = `API URL: ${API_URL}\n\nToken in storage: ${token ? 'YES' : 'NO'}\nUser in storage: ${user ? 'YES' : 'NO'}\n\nCurrent Token: ${currentToken ? currentToken.substring(0, 20) + '...' : 'NONE'}\nCurrent Category ID: ${currentCategoryId || 'NONE'}\n\nLocalStorage contents:\n${JSON.stringify(localStorage, null, 2)}`;
+        }
+    </script>
+</body>
+
+</html>
